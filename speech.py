@@ -11,11 +11,7 @@ class Example(tk.Frame):
     def __init__(self, parent):
         tk.Frame.__init__(self, parent)
 
-        # create a prompt, an input box, an output label,
-        # and a button to do the computation
-        self.prompt = tk.Label(self, text="Enter a number:", anchor="w")
-        self.entry = tk.Entry(self)
-        #self.submit = tk.Button(self, text="Submit", command = self.process)
+        self.prompt = tk.Label(self, text="Choose a Command:", anchor="w")
         self.output = tk.Label(self, text="")
         self.hello = tk.Button(self, text="hello", command = self.hello)
         self.do = tk.Button(self, text="do", command = self.do)
@@ -28,11 +24,7 @@ class Example(tk.Frame):
         self.backup = tk.Button(self, text="backup", command = self.backup)
         self.list = tk.Button(self, text="list", command = self.list)
 
-
-        # lay the widgets out on the screen.
-        self.prompt.pack(side="top", fill="x")
-        self.entry.pack(side="top", fill="x", padx=20)
-
+        self.prompt.pack(side="top", fill="x", padx=20, pady=5)
         self.hello.pack(side="bottom")
         self.do.pack(side="bottom")
         self.delete.pack(side="bottom")
@@ -45,6 +37,9 @@ class Example(tk.Frame):
         self.list.pack(side="bottom")
         self.output.pack(side="top", fill="x", expand=True)
 
+    '''
+    hooks for each word being put into process to get into correct test directory
+    '''
     def hello(self):
         self.process("hello")
     def do(self):
@@ -66,6 +61,7 @@ class Example(tk.Frame):
     def list(self):
         self.process("list")
 
+    '''reads in normal waves'''
     def readWaves(self):
         waves = []
         for dirname, dirnames, filenames in os.walk('audio'):
@@ -75,6 +71,8 @@ class Example(tk.Frame):
                 out = (sig,rate)
                 waves.append(out)
         return waves,filenames
+
+    '''reads in waves in each test folder'''
     def readWavesTest(self,test):
         waves = []
         test = "test/"+test
@@ -86,22 +84,25 @@ class Example(tk.Frame):
                 waves.append(out)
         return waves,filenames
 
-    def getCeps(self,waves):#pointwise multiply and subtract the average from all of it. Can compare on zero crossings too. can do length penaltiies.
+    '''gets the cepstrums for the read in waves'''
+    def getCeps(self,waves):
         ceps = []
         for i in range(0,len(waves)):
             ceps.append(mfcc(waves[i][1],waves[i][0]))
         return ceps
+
+    '''
+    not actually used in code, maybe if I had more time I could have figured out
+    exactly how to utilize these
+    '''
     def getFBanks(self,waves):
         fbanks = []
         for wave in waves:
             fbanks.append(logfbank(wave[1],wave[0]))
         return fbanks
-        '''
-        cut the dtw to only sample smaller pieces for cepstrums and do the same for zero crossing. May need
-        to normalize the cepstra otherwise the biggest one wins/loses. To normalize do zero mean and divide by st dev.
-        '''
-    def DTWDistance(self,s,t):#44100, divide signal into chunks. chunk into fixed sample sizes.
-        n = len(s)#can do vectors or single values.
+
+    def DTWDistance(self,s,t):
+        n = len(s)
         m = len(t)
         DTW  = []
         for i in range(0,n):
@@ -116,8 +117,7 @@ class Example(tk.Frame):
         DTW[0][0] = 0
         for i in range(1,n):
             for j in range(1,m):
-                #print len(s[i]), len(t[j])
-                cost = self.dist3(s[i],t[j])# can put ssd here, normalized pointwise compare.
+                cost = self.dist3(s[i],t[j])
                 DTW[i][j] = cost + min(DTW[i-1][j],DTW[i][j-1],DTW[i-1][j-1])
 
         return DTW[n-1][m-1]
@@ -155,6 +155,7 @@ class Example(tk.Frame):
             sumDiff += pow(((s[i])-(t[i])),2)
         return sumDiff
 
+    '''working implementation of the dist function'''
     def dist3(self,s,t):
         diffs = []
         for i in range(0,len(s)):
@@ -165,6 +166,15 @@ class Example(tk.Frame):
             variance += pow(i - diffmean,2)
         return variance
 
+    '''
+    The function that does all of the real work. This function reads in all of
+    the waves, gets the cepstrums for each of those waves, computes zeroCrossings
+    that were not actually used(kind of muddied the waters, probably the zero
+    crossing just needed to be refined), Uses DTW on the cepstrums of each wave,
+    finds the minimum distance and outputs it to the window as the two matching
+    filenames. The first filename being a test file and the second being the
+    original file that the test matched up with.
+    '''
     def process(self,file):
         # get the value from the input widget, convert
         # it to an int, and do a calculation
@@ -196,8 +206,6 @@ class Example(tk.Frame):
                     pos = True
             zeroCrossings.append(count)
             print count
-
-
         zeroDiffs = []
         for j in range(0,len(cepstrums)):
             temp = abs(zeroCrossings[n]-zeroCrossings[j]),n,j,names[n],names[j]
@@ -212,19 +220,12 @@ class Example(tk.Frame):
                 minimum = diff
         print minimum
         '''
-        # set the output widget to have our result
-
-
         differences = []
-
         for j in range(0,len(cepstrums)):
             temp = self.DTWDistance(tCeps[n],cepstrums[j]),n,j,tNames[n],names[j]
             differences.append(temp)
-
-        #diffs = self.DTWDistance(cepstrums[0],cepstrums[1])
-        #print differences
-        for d in differences:
-            print d
+        '''for d in differences:
+            print d'''
         if differences[1] != 0:
             minimum = differences[1]
         else:
@@ -240,9 +241,6 @@ class Example(tk.Frame):
         for item in list:
             sum += item
         return sum/len(list)
-# if this is run as a program (versus being imported),
-# create a root window and an instance of our example,
-# then start the event loop
 
 if __name__ == "__main__":
     root = tk.Tk()
